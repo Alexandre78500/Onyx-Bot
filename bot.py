@@ -50,7 +50,8 @@ initial_extensions = [
     'cogs.dreamjournal',
     'cogs.dreamjournal2',
     'cogs.dreamjournal3',
-    'cogs.help'  # Ajout du nouveau cog pour la commande help
+    'cogs.help',
+    'cogs.ideas'  # Ajout du nouveau cog pour les idées
 ]
 
 if __name__ == '__main__':

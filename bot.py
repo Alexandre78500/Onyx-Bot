@@ -41,7 +41,7 @@ initial_extensions = [
     'cogs.dreamjournal2',
     'cogs.dreamjournal3',
     'cogs.help',
-    'cogs.ideas'  # Ajout du nouveau cog pour les idées
+    'cogs.ideas'
 ]
 
 if __name__ == '__main__':
@@ -58,11 +58,28 @@ async def on_ready():
 
 @bot.event
 async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send("Commande non trouvée.")
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("Vous n'avez pas les permissions nécessaires pour cette commande.")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("Argument incorrect. Veuillez vérifier votre commande.")
+    else:
+        await ctx.send("Une erreur est survenue.")
     logger.error(f'Error in command {ctx.command}: {error}', exc_info=True)
 
 @bot.event
 async def on_command(ctx):
     logger.info(f"Command '{ctx.command}' executed by user '{ctx.author}'")
     log_command(ctx.command.name, ctx.author)
+
+# Exemple de commande avec validation des entrées
+@bot.command()
+async def adddream(ctx, *, title: str):
+    if len(title) > 100:
+        await ctx.send("Le titre du rêve est trop long. Veuillez utiliser moins de 100 caractères.")
+    else:
+        # Code pour ajouter le rêve
+        await ctx.send(f"Rêve ajouté avec le titre : {title}")
 
 bot.run(bot_token)

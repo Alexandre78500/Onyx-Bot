@@ -11,11 +11,17 @@ class ServerStats(commands.Cog):
         self.bot = bot
 
         # Charger les données depuis le fichier JSON pour les messages
+        self.message_stats = self.load_stats()
+
+    def load_stats(self):
         if os.path.exists(stats_file):
-            with open(stats_file, 'r') as f:
-                self.message_stats = json.load(f)
+            try:
+                with open(stats_file, 'r') as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                return {}
         else:
-            self.message_stats = {}
+            return {}
 
     def save_stats(self):
         with open(stats_file, 'w') as f:

@@ -9,40 +9,49 @@ class Help(commands.Cog):
 
     @commands.command()
     async def help(self, ctx, *args):
-        help_embed = discord.Embed(title="Commandes d'Onyx Bot", color=discord.Color.green())
-        help_embed.set_thumbnail(url=self.bot.user.avatar_url)
-        help_embed.set_footer(text="Tapez o!help <command> pour plus de détails sur chaque commande.")
+        help_embed1 = discord.Embed(title="Commandes d'Onyx Bot (1/2)", color=discord.Color.green())
+        help_embed1.set_thumbnail(url=self.bot.user.avatar_url)
+        help_embed1.set_footer(text="Tapez o!help <command> pour plus de détails sur chaque commande.")
+
+        help_embed2 = discord.Embed(title="Commandes d'Onyx Bot (2/2)", color=discord.Color.green())
+        help_embed2.set_thumbnail(url=self.bot.user.avatar_url)
+        help_embed2.set_footer(text="Tapez o!help <command> pour plus de détails sur chaque commande.")
 
         if not args:
-            help_embed.add_field(name="DreamJournal:", value="Pour ceux qui veulent se souvenir de leurs rêves et pas juste dormir comme une souche.", inline=False)
-            help_embed.add_field(name="`adddream`", value="Ajoutez un rêve. Ne vous attendez pas à un Oscar.", inline=True)
-            help_embed.add_field(name="`deletedream`", value="Supprimez un rêve. Oui, faites comme si ça n'était jamais arrivé.", inline=True)
-            help_embed.add_field(name="`listdreams`", value="Listez vos rêves. Voyons si vous avez une imagination.", inline=True)
-            help_embed.add_field(name="`searchdreams`", value="Cherchez un rêve. Parce que parfois, Google ne suffit pas.", inline=True)
-            help_embed.add_field(name="`viewdream`", value="Voyez un rêve en détail. Préparez-vous à l'ennui.", inline=True)
-            help_embed.add_field(name="`dreamcalendar`", value="Affiche un calendrier des rêves. Pour voir vos nuits en couleur.", inline=True)
-            help_embed.add_field(name="`userdreamstats`", value="Affiche vos statistiques de rêves. Parce que les chiffres sont importants.", inline=True)
-            help_embed.add_field(name="`generaldreamstats`", value="Affiche les statistiques générales de tous les rêves. Pour les obsédés des stats.", inline=True)
+            help_embed1.add_field(name="DreamJournal:", value="Pour ceux qui veulent se souvenir de leurs rêves et pas juste dormir comme une souche.", inline=False)
+            help_embed1.add_field(name="`adddream`", value="Ajoutez un rêve. Ne vous attendez pas à un Oscar.", inline=True)
+            help_embed1.add_field(name="`deletedream`", value="Supprimez un rêve. Oui, faites comme si ça n'était jamais arrivé.", inline=True)
+            help_embed1.add_field(name="`listdreams`", value="Listez vos rêves. Voyons si vous avez une imagination.", inline=True)
+            help_embed1.add_field(name="`searchdreams`", value="Cherchez un rêve. Parce que parfois, Google ne suffit pas.", inline=True)
+            help_embed1.add_field(name="`viewdream`", value="Voyez un rêve en détail. Préparez-vous à l'ennui.", inline=True)
+            help_embed1.add_field(name="`dreamcalendar`", value="Affiche un calendrier des rêves. Pour voir vos nuits en couleur.", inline=True)
+            help_embed1.add_field(name="`userdreamstats`", value="Affiche vos statistiques de rêves. Parce que les chiffres sont importants.", inline=True)
+            help_embed1.add_field(name="`generaldreamstats`", value="Affiche les statistiques générales de tous les rêves. Pour les obsédés des stats.", inline=True)
 
-            help_embed.add_field(name="Profile:", value="Parce que tout le monde mérite de se la péter avec ses rêves lucides.", inline=False)
-            help_embed.add_field(name="`addrl`", value="Ajoutez des RL. Parce que rêver, c'est vivre.", inline=True)
-            help_embed.add_field(name="`profile`", value="Voyez votre profil. Votre vie en résumé.", inline=True)
-            help_embed.add_field(name="`setrl`", value="Définissez le nombre de RL. Ne trichez pas, on vous voit.", inline=True)
+            help_embed1.add_field(name="Profile:", value="Parce que tout le monde mérite de se la péter avec ses rêves lucides.", inline=False)
+            help_embed1.add_field(name="`addrl`", value="Ajoutez des RL. Parce que rêver, c'est vivre.", inline=True)
+            help_embed1.add_field(name="`profile`", value="Voyez votre profil. Votre vie en résumé.", inline=True)
+            help_embed1.add_field(name="`setrl`", value="Définissez le nombre de RL. Ne trichez pas, on vous voit.", inline=True)
 
-            help_embed.add_field(name="Stats:", value="Pour ceux qui aiment les chiffres plus que les rêves.", inline=False)
-            help_embed.add_field(name="`mystats`", value="Vos stats personnelles. Spoiler : elles sont mauvaises.", inline=True)
-            help_embed.add_field(name="`rank`", value="Classement des utilisateurs. Voyons qui est le plus bavard.", inline=True)
+            help_embed1.add_field(name="Stats:", value="Pour ceux qui aiment les chiffres plus que les rêves.", inline=False)
+            help_embed1.add_field(name="`mystats`", value="Vos stats personnelles. Spoiler : elles sont mauvaises.", inline=True)
+            help_embed1.add_field(name="`rank`", value="Classement des utilisateurs. Voyons qui est le plus bavard.", inline=True)
 
-            help_embed.add_field(name="WBTB:", value="Pour les warriors du sommeil interrompu.", inline=False)
-            help_embed.add_field(name="`wbtb`", value="Définissez une alarme WBTB. Debout, feignasse !", inline=True)
-            help_embed.add_field(name="`wbtblist`", value="Listez vos alarmes WBTB. Histoire de savoir quand vous réveiller.", inline=True)
+            help_embed2.add_field(name="WBTB:", value="Pour les warriors du sommeil interrompu.", inline=False)
+            help_embed2.add_field(name="`wbtb`", value="Définissez une alarme WBTB. Debout, feignasse !", inline=True)
+            help_embed2.add_field(name="`wbtblist`", value="Listez vos alarmes WBTB. Histoire de savoir quand vous réveiller.", inline=True)
 
-            help_embed.add_field(name="Ideas:", value="Pour ceux qui ont des idées de génie... ou pas.", inline=False)
-            help_embed.add_field(name="`submitidea`", value="Soumettez une idée. On verra si elle est géniale ou ridicule.", inline=True)
-            help_embed.add_field(name="`listideas`", value="Listez toutes les idées soumises. Seul Pikimi peut utiliser cette commande.", inline=True)
+            help_embed2.add_field(name="Ideas:", value="Pour ceux qui ont des idées de génie... ou pas.", inline=False)
+            help_embed2.add_field(name="`submitidea`", value="Soumettez une idée. On verra si elle est géniale ou ridicule.", inline=True)
+            help_embed2.add_field(name="`listideas`", value="Listez toutes les idées soumises. Seul Pikimi peut utiliser cette commande.", inline=True)
 
-            help_embed.add_field(name="No Category:", value="Commandes diverses pour les curieux.", inline=False)
-            help_embed.add_field(name="`help`", value="Montre ce message. Sérieusement, encore besoin d'aide ?", inline=True)
+            help_embed2.add_field(name="Music:", value="Pour écouter de la musique avec le bot.", inline=False)
+            help_embed2.add_field(name="`connect`", value="Le bot rejoint votre canal vocal.", inline=True)
+            help_embed2.add_field(name="`disconnect`", value="Le bot quitte le canal vocal.", inline=True)
+            help_embed2.add_field(name="`play`", value="Joue une chanson depuis une URL YouTube. Utilisation: `o!play <url>`.", inline=True)
+
+            help_embed2.add_field(name="No Category:", value="Commandes diverses pour les curieux.", inline=False)
+            help_embed2.add_field(name="`help`", value="Montre ce message. Sérieusement, encore besoin d'aide ?", inline=True)
 
         elif len(args) == 1:
             command = self.bot.get_command(args[0])
@@ -117,7 +126,7 @@ class Help(commands.Cog):
     Parfait pour les adeptes du Wake Back To Bed. 
     Supporte les formats 24h et 12h avec am/pm.""",
 
-                    "wbtblist": """Listez toutes vos alarmes WBTB. 
+                 "wbtblist": """Listez toutes vos alarmes WBTB. 
     Utilisation: `o!wbtblist`
     Planifiez vos réveils nocturnes avec précision. 
     Affiche l'heure de chaque alarme.""",
@@ -130,17 +139,30 @@ class Help(commands.Cog):
     Utilisation: `o!listideas`
     Seul Pikimi peut utiliser cette commande pour voir toutes les idées soumises.""",
 
+                    "connect": """Le bot rejoint votre canal vocal. 
+    Utilisation: `o!connect`
+    Pour commencer à écouter de la musique.""",
+
+                    "disconnect": """Le bot quitte le canal vocal. 
+    Utilisation: `o!disconnect`
+    Arrête la musique et quitte le canal.""",
+
+                    "play": """Joue une chanson depuis une URL YouTube. 
+    Utilisation: `o!play <url>`
+    Jouez votre musique préférée directement depuis YouTube.""",
+
                     "help": """Affiche ce message d'aide. 
     Utilisation: `o!help [commande]`
     Sérieusement, tu as encore besoin d'aide ?
     Affiche la liste des commandes ou la description d'une commande spécifique."""
                 }
-                help_embed.title = f"Commande `{command}`"
-                help_embed.description = descriptions.get(args[0], "Pas de description disponible.")
+                help_embed1.title = f"Commande `{command}`"
+                help_embed1.description = descriptions.get(args[0], "Pas de description disponible.")
             else:
-                help_embed.description = f"Commande `{args[0]}` non trouvée. Peut-être que tu rêves trop."
+                help_embed1.description = f"Commande `{args[0]}` non trouvée. Peut-être que tu rêves trop."
 
-        await ctx.send(embed=help_embed)
+        await ctx.send(embed=help_embed1)
+        await ctx.send(embed=help_embed2)
 
 def setup(bot):
     bot.add_cog(Help(bot))

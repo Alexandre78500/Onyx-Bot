@@ -41,7 +41,8 @@ initial_extensions = [
     'cogs.dreamjournal2',
     'cogs.dreamjournal3',
     'cogs.help',
-    'cogs.ideas'
+    'cogs.ideas',
+    'cogs.relay'  # Ajout du nouveau cog pour le relay
 ]
 
 if __name__ == '__main__':
@@ -72,14 +73,5 @@ async def on_command_error(ctx, error):
 async def on_command(ctx):
     logger.info(f"Command '{ctx.command}' executed by user '{ctx.author}'")
     log_command(ctx.command.name, ctx.author)
-
-# Exemple de commande avec validation des entrées
-@bot.command()
-async def adddream(ctx, *, title: str):
-    if len(title) > 100:
-        await ctx.send("Le titre du rêve est trop long. Veuillez utiliser moins de 100 caractères.")
-    else:
-        # Code pour ajouter le rêve
-        await ctx.send(f"Rêve ajouté avec le titre : {title}")
 
 bot.run(bot_token)

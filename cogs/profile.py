@@ -24,7 +24,7 @@ grades = [
     (15, "Jeune Onironaute"),
     (20, "Soldat Onironaute"),
     (30, "Mage Onironaute"),
-    (40, "Mage avancé Onironaute"),
+    (40, "Mage Avancé Onironaute"),
     (50, "Forgeron Onironaute"),
     (60, "Centurion Onironaute"),
     (80, "Archimage Onironaute"),

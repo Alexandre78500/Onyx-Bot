@@ -37,6 +37,10 @@ class Help(commands.Cog):
             help_embed.add_field(name="`wbtb`", value="Définissez une alarme WBTB. Debout, feignasse !", inline=True)
             help_embed.add_field(name="`wbtblist`", value="Listez vos alarmes WBTB. Histoire de savoir quand vous réveiller.", inline=True)
 
+            help_embed.add_field(name="Ideas:", value="Pour ceux qui ont des idées de génie... ou pas.", inline=False)
+            help_embed.add_field(name="`submitidea`", value="Soumettez une idée. On verra si elle est géniale ou ridicule.", inline=True)
+            help_embed.add_field(name="`listideas`", value="Listez toutes les idées soumises. Seul Pikimi peut utiliser cette commande.", inline=True)
+
             help_embed.add_field(name="No Category:", value="Commandes diverses pour les curieux.", inline=False)
             help_embed.add_field(name="`help`", value="Montre ce message. Sérieusement, encore besoin d'aide ?", inline=True)
 
@@ -117,6 +121,14 @@ class Help(commands.Cog):
     Utilisation: `o!wbtblist`
     Planifiez vos réveils nocturnes avec précision. 
     Affiche l'heure de chaque alarme.""",
+
+                    "submitidea": """Soumettez une idée pour améliorer le bot.
+    Utilisation: `o!submitidea <votre idée>`
+    Votre idée sera enregistrée et pourra être revue par l'administrateur.""",
+
+                    "listideas": """Listez toutes les idées soumises.
+    Utilisation: `o!listideas`
+    Seul Pikimi peut utiliser cette commande pour voir toutes les idées soumises.""",
 
                     "help": """Affiche ce message d'aide. 
     Utilisation: `o!help [commande]`

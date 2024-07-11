@@ -1,5 +1,4 @@
 import logging
-import logging.handlers
 import os
 
 LOG_DIR = "logs"
@@ -16,3 +15,8 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+# Fonction pour enregistrer les commandes
+def log_command(command_name, user):
+    logger = logging.getLogger('command_logger')
+    logger.info(f"Command '{command_name}' executed by user '{user}'")

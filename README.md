@@ -1,82 +1,69 @@
-### README for Onyx-Bot
+# Onyx Bot
 
----
+Onyx Bot est un bot Discord conçu pour aider les utilisateurs à gérer et analyser leurs rêves, avec un focus particulier sur les rêves lucides.
 
-## Introduction
+## Fonctionnalités
 
-Onyx-Bot is a versatile and feature-rich Discord bot designed to enhance user interaction and provide various utilities such as dream journal tracking, statistical analysis, and automated tasks like wake-back-to-bed (WBTB) reminders.
+- **Journal de Rêves**: Ajoutez, listez, visualisez et supprimez vos rêves.
+- **Statistiques de Rêves**: Obtenez des statistiques détaillées sur vos rêves et ceux de la communauté.
+- **Calendrier des Rêves**: Visualisez vos rêves sur un calendrier mensuel.
+- **Profil Onirique**: Gérez votre profil de rêveur, incluant le nombre de rêves lucides.
+- **Alarme WBTB**: Programmez des alarmes pour la technique Wake Back To Bed.
+- **Statistiques d'Activité**: Suivez votre activité sur le serveur.
+- **Système d'Idées**: Soumettez et consultez des idées pour améliorer le bot.
 
-## Features
+## Commandes Principales
 
-### 1. Dream Journal
-- **adddream**: Adds a new dream entry to the user's journal.
-- **deletedream**: Deletes a specific dream entry.
-- **listdreams**: Lists all dream entries for a user.
-- **searchdreams**: Searches for dream entries containing specific keywords.
-- **viewdream**: Views the content of a specific dream entry.
-- **dreamcalendar**: Displays a calendar view of dreams.
-- **userdreamstats**: Shows detailed dream statistics for a user.
-- **generaldreamstats**: Shows general dream statistics for the entire server.
+- `o!interactivedream`: Interface interactive pour gérer vos rêves.
+- `o!dreamcalendar`: Affiche un calendrier de vos rêves.
+- `o!dstats [@membre]`: Affiche les statistiques de rêves d'un utilisateur.
+- `o!gstats`: Affiche les statistiques globales des rêves sur le serveur.
+- `o!profile [@membre]`: Affiche le profil onirique d'un utilisateur.
+- `o!wbtb <heure>`: Programme une alarme WBTB.
+- `o!mystats`: Affiche vos statistiques d'activité sur le serveur.
+- `o!submitidea <idée>`: Soumet une idée pour améliorer le bot.
 
-### 2. Profile
-- **addrl**: Adds a certain number of lucid dreams to a user's profile.
-- **profile**: Displays the user's profile with dream statistics.
-- **setrl**: Sets the number of lucid dreams on a user's profile.
+## Structure du Projet
 
-### 3. Statistics
-- **mystats**: Displays personal message statistics over different time periods.
-- **rank**: Displays the ranking of the most active users based on message count.
+```
+onyx-bot/
+│
+├── bot.py
+├── config.py
+├── requirements.txt
+│
+├── cogs/
+│   ├── dreamjournal.py
+│   ├── profile.py
+│   ├── statistics.py
+│   ├── utilities.py
+│   ├── admin.py
+│   ├── fun.py
+│   └── help.py
+│
+├── utils/
+│   ├── json_manager.py
+│   └── time_utils.py
+│
+└── data/
+    ├── dreams.json
+    ├── user_data.json
+    └── stats.json
+```
 
-### 4. Reactions
-- **on_message**: Automatically adds reactions to specific keywords or phrases in messages.
+## Installation
 
-### 5. Wake-Back-To-Bed (WBTB)
-- **wbtb**: Sets an alarm for WBTB practice.
-- **wbtblist**: Lists all set WBTB alarms for users.
+1. Clonez ce repository
+2. Installez les dépendances : `pip install -r requirements.txt`
+3. Configurez votre token Discord dans un fichier `.env`
+4. Lancez le bot : `python bot.py`
 
-### 6. Welcome and Leave Messages
-- **welcome**: Sends a welcome message to new members.
-- **leave**: Sends a message when a member leaves the server.
+## Contribution
 
-## File Structure
+Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou à soumettre une pull request.
 
-- `cogs/`: Contains the different modules (cogs) for the bot's functionalities.
-  - `__init__.py`
-  - `dreamjournal.py`
-  - `dreamjournal2.py`
-  - `dreamjournal3.py`
-  - `leave.py`
-  - `profile.py`
-  - `reactions.py`
-  - `stats.py`
-  - `stats2.py`
-  - `stats3.py`
-  - `wbtb.py`
-  - `welcome.py`
-- `data/`: Contains the data files used by the bot.
-  - `avatars/`
-  - `247353196266127360_calendar.png`
-  - `dreams.json`
-  - `message_stats.json`
-  - `user_data.json`
-- `venv/`: Virtual environment for dependencies.
-- `bot.py`: Main script to run the bot.
+## Licence
 
-## Setup Instructions
+This project is licensed under the MIT License.
 
-1. Clone the repository: `git clone https://github.com/Alexandre78500/Onyx-Bot.git`
-2. Install dependencies: `pip install -r requirements.txt`
-3. Configure the bot token and other environment variables in a `.env` file.
-4. Run the bot: `python bot.py`
-
-## Contributing
-
-Please read the [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-This README provides a comprehensive overview of Onyx-Bot's features, file structure, setup instructions, and contributing guidelines. For further assistance or questions, feel free to open an issue or contact the project maintainers.
+```

@@ -52,8 +52,8 @@ class Help(commands.Cog):
             ("📓 Journal des Rêves", [
                 ("interactivedream", "Gestion interactive de vos rêves"),
                 ("dreamcalendar", "Calendrier de vos rêves"),
-                ("userdreamstats", "Vos statistiques de rêves"),
-                ("generaldreamstats", "Statistiques globales des rêves")
+                ("dstats", "Vos statistiques de rêves"),
+                ("gstats", "Statistiques globales des rêves")
             ]),
             ("👤 Profil", [
                 ("addrl", "Ajouter des rêves lucides"),
@@ -70,7 +70,10 @@ class Help(commands.Cog):
             ]),
             ("💡 Idées", [
                 ("submitidea", "Soumettre une idée"),
-                ("listideas", "Lister les idées (admin)")
+            ]),
+            ("🛠️ Admin", [
+                ("listideas", "Lister les idées (admin)"),
+                ("relay", "Relayer un message (admin)")
             ]),
             ("❓ Aide", [
                 ("help", "Afficher ce message d'aide")
@@ -121,12 +124,12 @@ Navigation par réactions pour gérer vos rêves :
 Utilisation: o!dreamcalendar
 Visualisez vos rêves sur un calendrier coloré.""",
 
-            "userdreamstats": """Statistiques de vos rêves.
-Utilisation: o!userdreamstats [@membre]
+            "dstats": """Statistiques de vos rêves.
+Utilisation: o!dstats [@membre]
 Affiche des statistiques détaillées sur vos rêves ou ceux d'un autre membre.""",
 
-            "generaldreamstats": """Statistiques globales des rêves.
-Utilisation: o!generaldreamstats
+            "gstats": """Statistiques globales des rêves.
+Utilisation: o!gstats
 Affiche des statistiques sur tous les rêves enregistrés sur le serveur.""",
 
             "addrl": """Ajoute des rêves lucides à votre profil.
@@ -163,6 +166,10 @@ Partagez vos suggestions d'amélioration.""",
 
             "listideas": """Liste toutes les idées soumises.
 Utilisation: o!listideas
+Réservé à l'administrateur.""",
+
+            "relay": """Relaye un message vers un canal spécifique.
+Utilisation: o!relay <message>
 Réservé à l'administrateur.""",
 
             "help": """Affiche l'aide du bot.

@@ -9,4 +9,4 @@ venv/
 # Ignore log files
 *.log
 
-_pycache_/
+__pycache__/

@@ -8,6 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import random
 import aiofiles
 from collections import defaultdict
+import math
 
 dreams_file = "data/dreams.json"
 CHANNEL_ID = 376777553945296899  # ID du canal général
@@ -68,17 +69,15 @@ class DreamJournalInteractive(commands.Cog):
         embed.add_field(name="1️⃣ Ajouter un rêve", value="Commencez à ajouter un nouveau rêve", inline=False)
         embed.add_field(name="2️⃣ Lister vos rêves", value="Affichez la liste de vos rêves enregistrés", inline=False)
         embed.add_field(name="3️⃣ Supprimer un rêve", value="Supprimez un rêve existant", inline=False)
-        embed.add_field(name="4️⃣ Visualiser un rêve", value="Visualisez un rêve spécifique", inline=False)
-        embed.add_field(name="5️⃣ Rechercher des rêves", value="Recherchez des rêves par mot-clé", inline=False)
+        embed.add_field(name="4️⃣ Rechercher des rêves", value="Recherchez des rêves par mot-clé", inline=False)
         action_msg = await ctx.send(embed=embed)
         await action_msg.add_reaction('1️⃣')
         await action_msg.add_reaction('2️⃣')
         await action_msg.add_reaction('3️⃣')
         await action_msg.add_reaction('4️⃣')
-        await action_msg.add_reaction('5️⃣')
 
         def check_reaction(reaction, user):
-            return user == ctx.author and str(reaction.emoji) in ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣']
+            return user == ctx.author and str(reaction.emoji) in ['1️⃣', '2️⃣', '3️⃣', '4️⃣']
 
         try:
             reaction, user = await self.bot.wait_for('reaction_add', check=check_reaction, timeout=1800.0)  # 30 minutes
@@ -87,12 +86,10 @@ class DreamJournalInteractive(commands.Cog):
             if str(reaction.emoji) == '1️⃣':
                 await self.interactive_adddream(ctx)
             elif str(reaction.emoji) == '2️⃣':
-                await self.interactive_listdreams(ctx)
+                await self.interactive_listdreams(ctx, ctx.author, 1)  # Commencez à la page 1
             elif str(reaction.emoji) == '3️⃣':
                 await self.interactive_deletedream(ctx)
             elif str(reaction.emoji) == '4️⃣':
-                await self.interactive_viewdream(ctx)
-            elif str(reaction.emoji) == '5️⃣':
                 await self.interactive_searchdreams(ctx)
         except asyncio.TimeoutError:
             await ctx.send(f"{ctx.author.mention}, temps écoulé pour choisir une action. Veuillez recommencer et répondre dans les délais impartis.")
@@ -111,6 +108,11 @@ class DreamJournalInteractive(commands.Cog):
         def check(m):
             return m.author == ctx.author and m.channel == ctx.channel
 
+        def check_cancel(reaction, user):
+            return user == ctx.author and str(reaction.emoji) == '❌'
+
+        await msg.add_reaction('❌')
+
         try:
             title_msg = await self.bot.wait_for('message', check=check, timeout=1800.0)  # 30 minutes par message
             title = title_msg.content
@@ -128,10 +130,22 @@ class DreamJournalInteractive(commands.Cog):
 
             content = []
             while True:
-                content_msg = await self.bot.wait_for('message', check=check, timeout=1800.0)  # 30 minutes par message
-                if content_msg.content.upper() == 'FIN':
-                    break
-                content.append(content_msg.content)
+                done, pending = await asyncio.wait(
+                    [
+                        self.bot.wait_for('message', check=check, timeout=1800.0),
+                        self.bot.wait_for('reaction_add', check=check_cancel, timeout=1800.0)
+                    ],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                if done:
+                    try:
+                        content_msg = done.pop().result()
+                        if isinstance(content_msg, discord.Message) and content_msg.content.upper() == 'FIN':
+                            break
+                        if isinstance(content_msg, discord.Message):
+                            content.append(content_msg.content)
+                    except asyncio.TimeoutError:
+                        break
 
             content = "\n".join(content)
             date = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=2))).isoformat()
@@ -208,8 +222,8 @@ class DreamJournalInteractive(commands.Cog):
             await ctx.send(f"{ctx.author.mention}, temps écoulé pour la réponse. Veuillez recommencer et répondre dans les délais impartis.")
             await msg.delete()
             return False
-
-    async def interactive_listdreams(self, ctx, member: discord.Member = None):
+            
+    async def interactive_listdreams(self, ctx, member: discord.Member = None, page: int = 1):
         if ctx.channel.name != "channel-des-rl":
             await ctx.send("Cette commande ne peut être utilisée que dans le canal `channel-des-rl`.")
             return
@@ -222,43 +236,100 @@ class DreamJournalInteractive(commands.Cog):
             await ctx.send(f"{member.display_name} n'a pas encore noté de rêves. Utilisez `o!adddream` pour en ajouter.")
             return
 
-        embed = discord.Embed(title=f"Rêves notés par {member.display_name}", color=discord.Color.blue())
-        for dream in self.dreams[user_id]:
+        dreams = self.dreams[user_id]
+        dreams_per_page = 5
+        total_pages = math.ceil(len(dreams) / dreams_per_page)
+
+        if page < 1 or page > total_pages:
+            await ctx.send(f"La page {page} n'existe pas. Il y a {total_pages} pages au total.")
+            return
+
+        start_index = (page - 1) * dreams_per_page
+        end_index = start_index + dreams_per_page
+        current_page_dreams = dreams[start_index:end_index]
+
+        embed = discord.Embed(title=f"Rêves notés par {member.display_name} (Page {page}/{total_pages})", color=discord.Color.blue())
+        for dream in current_page_dreams:
             title = f"⭐ {dream['title']}" if dream.get("rl", False) else dream["title"]
             date = datetime.fromisoformat(dream["date"]).astimezone(timezone(timedelta(hours=2))).strftime("%Y-%m-%d %H:%M:%S")
             embed.add_field(name=title, value=f"Ajouté le {date}", inline=False)
-
-        msg = await ctx.send(embed=embed)
-
-        embed = discord.Embed(title="Visualiser un rêve", description="Souhaitez-vous visualiser un rêve spécifique ? Réagissez avec ✅ pour oui, ❌ pour non.", color=discord.Color.blue())
-        view_msg = await ctx.send(embed=embed)
-        await view_msg.add_reaction('✅')
-        await view_msg.add_reaction('❌')
+        
+        list_msg = await ctx.send(embed=embed)
+        
+        # Ajout des réactions pour la navigation
+        if total_pages > 1:
+            await list_msg.add_reaction('⬅️')  # Flèche gauche pour la page précédente
+            await list_msg.add_reaction('➡️')  # Flèche droite pour la page suivante
+        await list_msg.add_reaction('🔍')  # Loupe pour visualiser un rêve
+        await list_msg.add_reaction('❌')  # Croix pour fermer
 
         def check_reaction(reaction, user):
-            return user == ctx.author and str(reaction.emoji) in ['✅', '❌'] and reaction.message.id == view_msg.id
+            return user == ctx.author and str(reaction.emoji) in ['⬅️', '➡️', '🔍', '❌'] and reaction.message.id == list_msg.id
+
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', check=check_reaction, timeout=60.0)
+                
+                if str(reaction.emoji) == '⬅️' and page > 1:
+                    await list_msg.delete()
+                    await self.interactive_listdreams(ctx, member, page - 1)
+                    return
+                elif str(reaction.emoji) == '➡️' and page < total_pages:
+                    await list_msg.delete()
+                    await self.interactive_listdreams(ctx, member, page + 1)
+                    return
+                elif str(reaction.emoji) == '🔍':
+                    await self.interactive_viewdream(ctx)
+                elif str(reaction.emoji) == '❌':
+                    await list_msg.delete()
+                    return
+                
+                await list_msg.remove_reaction(reaction, user)
+                
+            except asyncio.TimeoutError:
+                await ctx.send(f"{ctx.author.mention}, temps écoulé pour choisir une action. La liste des rêves sera fermée.")
+                await list_msg.delete()
+                return
+
+    async def interactive_viewdream(self, ctx):
+        user_id = str(ctx.author.id)
+        if user_id not in self.dreams:
+            await ctx.send("Vous n'avez pas encore noté de rêves.")
+            return
+
+        embed = discord.Embed(title="Visualiser un rêve", description="Quel est le titre du rêve que vous souhaitez visualiser ?", color=discord.Color.blue())
+        msg = await ctx.send(embed=embed)
+
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
 
         try:
-            reaction, user = await self.bot.wait_for('reaction_add', check=check_reaction, timeout=1800.0)  # 30 minutes
-            if str(reaction.emoji) == '✅':
-                await self.interactive_viewdream(ctx)
-            await view_msg.delete()
+            title_msg = await self.bot.wait_for('message', check=check, timeout=1800.0)  # 30 minutes par message
+            title = title_msg.content
+
+            for dream in self.dreams[user_id]:
+                if dream["title"].lower() == title.lower():
+                    embed = discord.Embed(title=dream["title"], description=dream["content"], color=discord.Color.blue())
+                    await ctx.send(embed=embed)
+                    await msg.delete()
+                    await title_msg.delete()
+                    return
+
+            await ctx.send(f"Aucun rêve trouvé avec le titre '{title}'.")
+            await msg.delete()
+            await title_msg.delete()
+
         except asyncio.TimeoutError:
-            await ctx.send(f"{ctx.author.mention}, temps écoulé pour répondre. Veuillez recommencer et répondre dans les délais impartis.")
-            await view_msg.delete()
+            await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer et répondre dans les délais impartis.")
+            await msg.delete()
 
     async def interactive_deletedream(self, ctx):
         user_id = str(ctx.author.id)
-        if user_id not in self.dreams or not self.dreams[user_id]:
-            await ctx.send(f"{ctx.author.mention}, vous n'avez pas encore noté de rêves.")
+        if user_id not in self.dreams:
+            await ctx.send("Vous n'avez pas encore noté de rêves.")
             return
 
-        embed = discord.Embed(title="Supprimer un rêve", description="Voici la liste de vos rêves. Entrez le titre du rêve que vous souhaitez supprimer.", color=discord.Color.blue())
-        for dream in self.dreams[user_id]:
-            title = f"⭐ {dream['title']}" if dream.get("rl", False) else dream["title"]
-            date = datetime.fromisoformat(dream["date"]).astimezone(timezone(timedelta(hours=2))).strftime("%Y-%m-%d %H:%M:%S")
-            embed.add_field(name=title, value=f"Ajouté le {date}", inline=False)
-
+        embed = discord.Embed(title="Supprimer un rêve", description="Quel est le titre du rêve que vous souhaitez supprimer ?", color=discord.Color.blue())
         msg = await ctx.send(embed=embed)
 
         def check(m):
@@ -274,47 +345,19 @@ class DreamJournalInteractive(commands.Cog):
                     await self.save_dreams()
                     await ctx.send(f"Rêve '{title}' supprimé avec succès.")
                     await msg.delete()
+                    await title_msg.delete()
                     return
 
             await ctx.send(f"Aucun rêve trouvé avec le titre '{title}'.")
             await msg.delete()
+            await title_msg.delete()
 
         except asyncio.TimeoutError:
-            await ctx.send(f"{ctx.author.mention}, temps écoulé pour entrer le titre du rêve. Veuillez recommencer et répondre dans les délais impartis.")
-            await msg.delete()
-
-    async def interactive_viewdream(self, ctx):
-        user_id = str(ctx.author.id)
-        if user_id not in self.dreams:
-            await ctx.send(f"{ctx.author.mention}, vous n'avez pas encore noté de rêves.")
-            return
-
-        embed = discord.Embed(title="Visualiser un rêve", description="Entrez le titre du rêve que vous souhaitez visualiser.", color=discord.Color.blue())
-        msg = await ctx.send(embed=embed)
-
-        def check(m):
-            return m.author == ctx.author and m.channel == ctx.channel
-
-        try:
-            title_msg = await self.bot.wait_for('message', check=check, timeout=1800.0)  # 30 minutes par message
-            title = title_msg.content
-
-            for dream in self.dreams[user_id]:
-                if dream["title"].lower() == title.lower():
-                    embed = discord.Embed(title=dream["title"], description=dream["content"], color=discord.Color.blue())
-                    await ctx.send(embed=embed)
-                    await msg.delete()
-                    return
-
-            await ctx.send(f"Aucun rêve trouvé avec le titre '{title}'.")
-            await msg.delete()
-
-        except asyncio.TimeoutError:
-            await ctx.send(f"{ctx.author.mention}, temps écoulé pour entrer le titre du rêve. Veuillez recommencer et répondre dans les délais impartis.")
+            await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer et répondre dans les délais impartis.")
             await msg.delete()
 
     async def interactive_searchdreams(self, ctx):
-        embed = discord.Embed(title="Rechercher des rêves", description="Entrez un mot-clé pour rechercher dans vos rêves.", color=discord.Color.blue())
+        embed = discord.Embed(title="Rechercher des rêves", description="Entrez un mot-clé pour rechercher dans vos rêves :", color=discord.Color.blue())
         msg = await ctx.send(embed=embed)
 
         def check(m):
@@ -323,8 +366,8 @@ class DreamJournalInteractive(commands.Cog):
         try:
             query_msg = await self.bot.wait_for('message', check=check, timeout=1800.0)  # 30 minutes par message
             query = query_msg.content.lower()
-
             results = []
+
             for user_id, dreams in self.dreams.items():
                 for dream in dreams:
                     if query in dream["title"].lower() or query in dream["content"].lower():
@@ -334,6 +377,7 @@ class DreamJournalInteractive(commands.Cog):
             if not results:
                 await ctx.send("Aucun rêve trouvé correspondant à votre recherche.")
                 await msg.delete()
+                await query_msg.delete()
                 return
 
             embed = discord.Embed(title="Résultats de la recherche", color=discord.Color.green())
@@ -344,10 +388,12 @@ class DreamJournalInteractive(commands.Cog):
             
             await ctx.send(embed=embed)
             await msg.delete()
+            await query_msg.delete()
 
         except asyncio.TimeoutError:
-            await ctx.send(f"{ctx.author.mention}, temps écoulé pour entrer le mot-clé. Veuillez recommencer et répondre dans les délais impartis.")
+            await ctx.send(f"{ctx.author.mention}, temps écoulé pour la recherche. Veuillez recommencer et répondre dans les délais impartis.")
             await msg.delete()
+            await query_msg.delete()
 
 def setup(bot):
     bot.add_cog(DreamJournalInteractive(bot))

@@ -1,168 +1,176 @@
-# cogs/help.py
-
 import discord
 from discord.ext import commands
+import asyncio
 
 class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.color = discord.Color.purple()  # Couleur thématique pour les embeds
 
     @commands.command()
     async def help(self, ctx, *args):
-        help_embed1 = discord.Embed(title="Commandes d'Onyx Bot (1/2)", color=discord.Color.green())
-        help_embed1.set_thumbnail(url=self.bot.user.avatar_url)
-        help_embed1.set_footer(text="Tapez o!help <command> pour plus de détails sur chaque commande.")
-
-        help_embed2 = discord.Embed(title="Commandes d'Onyx Bot (2/2)", color=discord.Color.green())
-        help_embed2.set_thumbnail(url=self.bot.user.avatar_url)
-        help_embed2.set_footer(text="Tapez o!help <command> pour plus de détails sur chaque commande.")
-
         if not args:
-            help_embed1.add_field(name="DreamJournal:", value="Pour ceux qui veulent se souvenir de leurs rêves et pas juste dormir comme une souche.", inline=False)
-            help_embed1.add_field(name="`adddream`", value="Ajoutez un rêve. Ne vous attendez pas à un Oscar.", inline=True)
-            help_embed1.add_field(name="`deletedream`", value="Supprimez un rêve. Oui, faites comme si ça n'était jamais arrivé.", inline=True)
-            help_embed1.add_field(name="`listdreams`", value="Listez vos rêves. Voyons si vous avez une imagination.", inline=True)
-            help_embed1.add_field(name="`searchdreams`", value="Cherchez un rêve. Parce que parfois, Google ne suffit pas.", inline=True)
-            help_embed1.add_field(name="`viewdream`", value="Voyez un rêve en détail. Préparez-vous à l'ennui.", inline=True)
-            help_embed1.add_field(name="`dreamcalendar`", value="Affiche un calendrier des rêves. Pour voir vos nuits en couleur.", inline=True)
-            help_embed1.add_field(name="`userdreamstats`", value="Affiche vos statistiques de rêves. Parce que les chiffres sont importants.", inline=True)
-            help_embed1.add_field(name="`generaldreamstats`", value="Affiche les statistiques générales de tous les rêves. Pour les obsédés des stats.", inline=True)
-
-            help_embed1.add_field(name="Profile:", value="Parce que tout le monde mérite de se la péter avec ses rêves lucides.", inline=False)
-            help_embed1.add_field(name="`addrl`", value="Ajoutez des RL. Parce que rêver, c'est vivre.", inline=True)
-            help_embed1.add_field(name="`profile`", value="Voyez votre profil. Votre vie en résumé.", inline=True)
-            help_embed1.add_field(name="`setrl`", value="Définissez le nombre de RL. Ne trichez pas, on vous voit.", inline=True)
-
-            help_embed1.add_field(name="Stats:", value="Pour ceux qui aiment les chiffres plus que les rêves.", inline=False)
-            help_embed1.add_field(name="`mystats`", value="Vos stats personnelles. Spoiler : elles sont mauvaises.", inline=True)
-            help_embed1.add_field(name="`rank`", value="Classement des utilisateurs. Voyons qui est le plus bavard.", inline=True)
-
-            help_embed2.add_field(name="WBTB:", value="Pour les warriors du sommeil interrompu.", inline=False)
-            help_embed2.add_field(name="`wbtb`", value="Définissez une alarme WBTB. Debout, feignasse !", inline=True)
-            help_embed2.add_field(name="`wbtblist`", value="Listez vos alarmes WBTB. Histoire de savoir quand vous réveiller.", inline=True)
-
-            help_embed2.add_field(name="Ideas:", value="Pour ceux qui ont des idées de génie... ou pas.", inline=False)
-            help_embed2.add_field(name="`submitidea`", value="Soumettez une idée. On verra si elle est géniale ou ridicule.", inline=True)
-            help_embed2.add_field(name="`listideas`", value="Listez toutes les idées soumises. Seul Pikimi peut utiliser cette commande.", inline=True)
-
-            help_embed2.add_field(name="Music:", value="Pour écouter de la musique avec le bot.", inline=False)
-            help_embed2.add_field(name="`connect`", value="Le bot rejoint votre canal vocal.", inline=True)
-            help_embed2.add_field(name="`disconnect`", value="Le bot quitte le canal vocal.", inline=True)
-            help_embed2.add_field(name="`play`", value="Joue une chanson depuis une URL YouTube. Utilisation: `o!play <url>`.", inline=True)
-
-            help_embed2.add_field(name="No Category:", value="Commandes diverses pour les curieux.", inline=False)
-            help_embed2.add_field(name="`help`", value="Montre ce message. Sérieusement, encore besoin d'aide ?", inline=True)
-
+            await self.send_paginated_help(ctx)
         elif len(args) == 1:
-            command = self.bot.get_command(args[0])
-            if command:
-                descriptions = {
-                    "adddream": """Ajoutez un rêve à votre journal. 
-    Utilisation: `o!adddream`
-    Le bot vous guidera pour enregistrer le titre et le contenu de votre rêve. 
-    Parfait pour les écrivains en herbe ou les rêveurs obsessionnels.""",
+            await self.send_command_help(ctx, args[0])
 
-                    "deletedream": """Supprimez un rêve de votre journal. 
-    Utilisation: `o!deletedream <titre>`
-    Effacez les traces de vos moments les plus embarrassants. 
-    Assurez-vous de bien orthographier le titre pour éviter les catastrophes.""",
+    async def send_paginated_help(self, ctx):
+        pages = self.create_help_pages()
+        current_page = 0
 
-                    "listdreams": """Listez tous vos rêves enregistrés. 
-    Utilisation: `o!listdreams`
-    Voyons si vous êtes plus Shakespeare ou série Z. 
-    Affiche le titre et la date de chaque rêve.""",
+        message = await ctx.send(embed=pages[current_page])
+        await message.add_reaction('⬅️')
+        await message.add_reaction('➡️')
+        await message.add_reaction('❌')
 
-                    "searchdreams": """Cherchez un rêve spécifique dans votre journal. 
-    Utilisation: `o!searchdreams <mot-clé>`
-    Parce que même Freud aurait besoin d'aide pour trouver vos rêves. 
-    Recherche les rêves par titre ou contenu.""",
+        def check(reaction, user):
+            return user == ctx.author and str(reaction.emoji) in ['⬅️', '➡️', '❌']
 
-                    "viewdream": """Voyez un rêve en détail. 
-    Utilisation: `o!viewdream <titre>`
-    Plongez dans votre subconscient, mais n'oubliez pas de revenir. 
-    Affiche le titre, le contenu, et la date du rêve.""",
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
 
-                    "dreamcalendar": """Affiche un calendrier des rêves. 
-    Utilisation: `o!dreamcalendar`
-    Voyez vos nuits en couleur avec un beau calendrier de vos rêves notés.""",
+                if str(reaction.emoji) == '➡️' and current_page < len(pages) - 1:
+                    current_page += 1
+                elif str(reaction.emoji) == '⬅️' and current_page > 0:
+                    current_page -= 1
+                elif str(reaction.emoji) == '❌':
+                    await message.delete()
+                    return
 
-                    "userdreamstats": """Affichez vos statistiques de rêves. 
-    Utilisation: `o!userdreamstats [@membre]`
-    Découvrez combien de rêves vous avez notés, combien sont lucides, et plus encore. 
-    Affiche des statistiques détaillées pour l'utilisateur spécifié.""",
+                await message.edit(embed=pages[current_page])
+                await message.remove_reaction(reaction, user)
 
-                    "generaldreamstats": """Affichez les statistiques générales de tous les rêves. 
-    Utilisation: `o!generaldreamstats`
-    Voyez combien de rêves ont été notés sur le serveur, le top 10 des utilisateurs, et plus encore. 
-    Affiche des statistiques détaillées pour tous les utilisateurs.""",
+            except asyncio.TimeoutError:
+                await message.clear_reactions()
+                break
 
-                    "addrl": """Ajoutez des rêves lucides à votre profil. 
-    Utilisation: `o!addrl <nombre>`
-    Montrez à tout le monde que vous maîtrisez l'art du rêve conscient. 
-    Les nombres négatifs ne sont pas acceptés.""",
+    def create_help_pages(self):
+        pages = []
+        commands_per_page = 4
+        all_commands = [
+            ("📓 Journal des Rêves", [
+                ("interactivedream", "Gestion interactive de vos rêves"),
+                ("dreamcalendar", "Calendrier de vos rêves"),
+                ("userdreamstats", "Vos statistiques de rêves"),
+                ("generaldreamstats", "Statistiques globales des rêves")
+            ]),
+            ("👤 Profil", [
+                ("addrl", "Ajouter des rêves lucides"),
+                ("profile", "Voir votre profil onirique"),
+                ("setrl", "Définir le nombre de rêves lucides")
+            ]),
+            ("📊 Statistiques", [
+                ("mystats", "Vos statistiques personnelles"),
+                ("rank", "Classement des utilisateurs")
+            ]),
+            ("⏰ WBTB", [
+                ("wbtb", "Définir une alarme WBTB"),
+                ("wbtblist", "Liste de vos alarmes WBTB")
+            ]),
+            ("💡 Idées", [
+                ("submitidea", "Soumettre une idée"),
+                ("listideas", "Lister les idées (admin)")
+            ]),
+            ("❓ Aide", [
+                ("help", "Afficher ce message d'aide")
+            ])
+        ]
 
-                    "profile": """Affichez votre profil onirique. 
-    Utilisation: `o!profile [@membre]`
-    Découvrez combien vous êtes impressionnant... ou pas. 
-    Affiche votre pseudonyme, statut, avatar, nombre de RL et grade onirique.""",
+        for i in range(0, len(all_commands), commands_per_page):
+            embed = discord.Embed(
+                title="Guide des Commandes Onyx Bot",
+                description=f"Page {i//commands_per_page + 1}/{-(-len(all_commands)//commands_per_page)}",
+                color=self.color
+            )
+            embed.set_thumbnail(url=self.bot.user.avatar_url)
+            embed.set_footer(text="Utilisez o!help <commande> pour plus de détails")
 
-                    "setrl": """Définissez le nombre de rêves lucides sur votre profil. 
-    Utilisation: `o!setrl <nombre>`
-    Trichez si vous voulez, mais on finira par le savoir. 
-    Les nombres négatifs ne sont pas acceptés.""",
+            for category, commands in all_commands[i:i+commands_per_page]:
+                value = "\n".join([f"`o!{cmd}` • {desc}" for cmd, desc in commands])
+                embed.add_field(name=category, value=value, inline=False)
 
-                    "mystats": """Affichez vos statistiques personnelles. 
-    Utilisation: `o!mystats`
-    Préparez-vous à être déçu par vos propres chiffres. 
-    Affiche le nombre de messages sur les dernières 24h, 7j et 30j, ainsi que l'évolution.""",
+            pages.append(embed)
 
-                    "rank": """Affichez le classement des utilisateurs les plus actifs. 
-    Utilisation: `o!rank`
-    Qui est le roi des bavards ? 
-    Affiche le top 10 des utilisateurs avec leur nombre de messages et l'évolution.""",
+        return pages
 
-                    "wbtb": """Définissez une alarme pour vous réveiller en pleine nuit. 
-    Utilisation: `o!wbtb <heure>`
-    Parfait pour les adeptes du Wake Back To Bed. 
-    Supporte les formats 24h et 12h avec am/pm.""",
+    async def send_command_help(self, ctx, command_name):
+        command = self.bot.get_command(command_name)
+        if command:
+            embed = discord.Embed(title=f"Commande : {command}", color=self.color)
+            embed.set_thumbnail(url=self.bot.user.avatar_url)
+            description = self.get_command_description(command_name)
+            embed.description = f"```{description}```"
+            embed.set_footer(text="Syntax: <> = obligatoire, [] = optionnel")
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(f"😕 La commande `{command_name}` n'existe pas. Essayez `o!help` pour voir toutes les commandes.")
 
-                 "wbtblist": """Listez toutes vos alarmes WBTB. 
-    Utilisation: `o!wbtblist`
-    Planifiez vos réveils nocturnes avec précision. 
-    Affiche l'heure de chaque alarme.""",
+    def get_command_description(self, command_name):
+        descriptions = {
+            "interactivedream": """Gestion interactive de vos rêves.
+Utilisation: o!interactivedream
+Navigation par réactions pour gérer vos rêves :
+- Ajouter un nouveau rêve
+- Lister vos rêves
+- Visualiser un rêve spécifique
+- Supprimer un rêve
+- Rechercher dans vos rêves""",
 
-                    "submitidea": """Soumettez une idée pour améliorer le bot.
-    Utilisation: `o!submitidea <votre idée>`
-    Votre idée sera enregistrée et pourra être revue par l'administrateur.""",
+            "dreamcalendar": """Affiche un calendrier de vos rêves.
+Utilisation: o!dreamcalendar
+Visualisez vos rêves sur un calendrier coloré.""",
 
-                    "listideas": """Listez toutes les idées soumises.
-    Utilisation: `o!listideas`
-    Seul Pikimi peut utiliser cette commande pour voir toutes les idées soumises.""",
+            "userdreamstats": """Statistiques de vos rêves.
+Utilisation: o!userdreamstats [@membre]
+Affiche des statistiques détaillées sur vos rêves ou ceux d'un autre membre.""",
 
-                    "connect": """Le bot rejoint votre canal vocal. 
-    Utilisation: `o!connect`
-    Pour commencer à écouter de la musique.""",
+            "generaldreamstats": """Statistiques globales des rêves.
+Utilisation: o!generaldreamstats
+Affiche des statistiques sur tous les rêves enregistrés sur le serveur.""",
 
-                    "disconnect": """Le bot quitte le canal vocal. 
-    Utilisation: `o!disconnect`
-    Arrête la musique et quitte le canal.""",
+            "addrl": """Ajoute des rêves lucides à votre profil.
+Utilisation: o!addrl <nombre>
+Mettez à jour votre compteur de rêves lucides.""",
 
-                    "play": """Joue une chanson depuis une URL YouTube. 
-    Utilisation: `o!play <url>`
-    Jouez votre musique préférée directement depuis YouTube.""",
+            "profile": """Affiche votre profil onirique.
+Utilisation: o!profile [@membre]
+Voir votre profil ou celui d'un autre membre.""",
 
-                    "help": """Affiche ce message d'aide. 
-    Utilisation: `o!help [commande]`
-    Sérieusement, tu as encore besoin d'aide ?
-    Affiche la liste des commandes ou la description d'une commande spécifique."""
-                }
-                help_embed1.title = f"Commande `{command}`"
-                help_embed1.description = descriptions.get(args[0], "Pas de description disponible.")
-            else:
-                help_embed1.description = f"Commande `{args[0]}` non trouvée. Peut-être que tu rêves trop."
+            "setrl": """Définit le nombre total de rêves lucides.
+Utilisation: o!setrl <nombre>
+Réinitialisez votre compteur de rêves lucides.""",
 
-        await ctx.send(embed=help_embed1)
-        await ctx.send(embed=help_embed2)
+            "mystats": """Affiche vos statistiques d'activité.
+Utilisation: o!mystats
+Voir votre activité sur les derniers 24h, 7j et 30j.""",
+
+            "rank": """Classement des utilisateurs les plus actifs.
+Utilisation: o!rank
+Affiche le top 10 des membres les plus actifs.""",
+
+            "wbtb": """Définit une alarme Wake Back To Bed.
+Utilisation: o!wbtb <heure>
+Planifiez votre réveil pour la technique WBTB.""",
+
+            "wbtblist": """Liste vos alarmes WBTB.
+Utilisation: o!wbtblist
+Affiche toutes vos alarmes WBTB programmées.""",
+
+            "submitidea": """Soumettez une idée pour le bot.
+Utilisation: o!submitidea <votre idée>
+Partagez vos suggestions d'amélioration.""",
+
+            "listideas": """Liste toutes les idées soumises.
+Utilisation: o!listideas
+Réservé à l'administrateur.""",
+
+            "help": """Affiche l'aide du bot.
+Utilisation: o!help [commande]
+Sans argument, montre la liste des commandes.
+Avec une commande, affiche les détails de celle-ci."""
+        }
+        return descriptions.get(command_name, "Description non disponible.")
 
 def setup(bot):
     bot.add_cog(Help(bot))

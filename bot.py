@@ -42,7 +42,8 @@ initial_extensions = [
     'cogs.dreamjournal3',
     'cogs.help',
     'cogs.ideas',
-    'cogs.relay'  # Ajout du nouveau cog pour le relay
+    'cogs.relay',
+    'cogs.contextual_help'  # Ajout du nouveau cog pour l'aide contextuelle
 ]
 
 if __name__ == '__main__':
@@ -59,15 +60,29 @@ async def on_ready():
 
 @bot.event
 async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandNotFound):
-        await ctx.send("Commande non trouvée.")
-    elif isinstance(error, commands.MissingPermissions):
-        await ctx.send("Vous n'avez pas les permissions nécessaires pour cette commande.")
-    elif isinstance(error, commands.BadArgument):
-        await ctx.send("Argument incorrect. Veuillez vérifier votre commande.")
+    if hasattr(ctx.command, 'on_error'):
+        return
+    
+    cog = ctx.cog
+    if cog and cog._get_overridden_method(cog.cog_command_error) is not None:
+        return
+
+    ignored = (commands.CommandNotFound, commands.MissingRequiredArgument, commands.BadArgument)
+    error = getattr(error, 'original', error)
+
+    if isinstance(error, ignored):
+        return
+
+    if isinstance(error, commands.DisabledCommand):
+        await ctx.send(f'{ctx.command} a été désactivée.')
+    elif isinstance(error, commands.NoPrivateMessage):
+        try:
+            await ctx.author.send(f'{ctx.command} ne peut pas être utilisée dans les messages privés.')
+        except discord.HTTPException:
+            pass
     else:
-        await ctx.send("Une erreur est survenue.")
-    logger.error(f'Error in command {ctx.command}: {error}', exc_info=True)
+        logger.error(f'Error in command {ctx.command}: {error}', exc_info=True)
+        await ctx.send("Une erreur inattendue est survenue. L'équipe technique a été notifiée.")
 
 @bot.event
 async def on_command(ctx):

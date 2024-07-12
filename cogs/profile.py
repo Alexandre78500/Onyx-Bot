@@ -1,19 +1,9 @@
+# cogs/profile.py
 import discord
 from discord.ext import commands
-import json
-import os
+from utils.json_manager import JsonManager
 
 data_file = "data/user_data.json"
-
-if not os.path.exists("data"):
-    os.makedirs("data")
-
-# Charger les données depuis le fichier JSON
-if os.path.exists(data_file):
-    with open(data_file, 'r') as f:
-        user_data = json.load(f)
-else:
-    user_data = {}
 
 grades = [
     (0, "Néant"),
@@ -43,13 +33,13 @@ def get_user_grade(rl_count):
             break
     return grade
 
-def save_user_data():
-    with open(data_file, 'w') as f:
-        json.dump(user_data, f)
-
 class Profile(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.user_data = JsonManager.load_json(data_file, default={})
+
+    def save_user_data(self):
+        JsonManager.save_json(data_file, self.user_data)
 
     async def update_roles(self, member, new_grade):
         guild = member.guild
@@ -73,20 +63,16 @@ class Profile(commands.Cog):
         status = member.status
         avatar_url = str(member.avatar_url)
 
-        user_info = user_data.get(str(member.id), {'rl_count': 0})
+        user_info = self.user_data.get(str(member.id), {'rl_count': 0})
         rl_count = user_info['rl_count']
         grade = get_user_grade(rl_count)
 
-        if status == discord.Status.online:
-            status_text = "Online"
-        elif status == discord.Status.offline:
-            status_text = "Offline"
-        elif status == discord.Status.idle:
-            status_text = "Idle"
-        elif status == discord.Status.dnd:
-            status_text = "Do Not Disturb"
-        else:
-            status_text = "Unknown"
+        status_text = {
+            discord.Status.online: "Online",
+            discord.Status.offline: "Offline",
+            discord.Status.idle: "Idle",
+            discord.Status.dnd: "Do Not Disturb"
+        }.get(status, "Unknown")
 
         embed = discord.Embed(title=f"Profil de {pseudonyme}", color=discord.Color.blue())
         embed.set_thumbnail(url=avatar_url)
@@ -102,16 +88,16 @@ class Profile(commands.Cog):
         user = ctx.author
         pseudonyme = user.name
         user_id = str(user.id)
-        if user_id not in user_data:
-            user_data[user_id] = {'rl_count': 0}
+        if user_id not in self.user_data:
+            self.user_data[user_id] = {'rl_count': 0}
         
-        new_rl_count = user_data[user_id]['rl_count'] + n
+        new_rl_count = self.user_data[user_id]['rl_count'] + n
         if new_rl_count < 0:
             await ctx.send(f"{pseudonyme}, vous ne pouvez pas avoir un nombre de RL négatif. C'est pas bien !")
         else:
-            user_data[user_id]['rl_count'] = new_rl_count
-            save_user_data()  # Sauvegarder les données après modification
-            rl_count = user_data[user_id]['rl_count']
+            self.user_data[user_id]['rl_count'] = new_rl_count
+            self.save_user_data()
+            rl_count = self.user_data[user_id]['rl_count']
             grade = get_user_grade(rl_count)
             await ctx.send(f"{pseudonyme} a maintenant {rl_count} RL et le grade de {grade}")
             
@@ -126,9 +112,9 @@ class Profile(commands.Cog):
         if n < 0:
             await ctx.send(f"{pseudonyme}, vous ne pouvez pas avoir un nombre de RL négatif. C'est pas bien !")
         else:
-            user_data[user_id] = {'rl_count': n}
-            save_user_data()  # Sauvegarder les données après modification
-            rl_count = user_data[user_id]['rl_count']
+            self.user_data[user_id] = {'rl_count': n}
+            self.save_user_data()
+            rl_count = self.user_data[user_id]['rl_count']
             grade = get_user_grade(rl_count)
             await ctx.send(f"{pseudonyme} a maintenant {rl_count} RL et le grade de {grade}")
             
@@ -137,14 +123,14 @@ class Profile(commands.Cog):
 
     async def add_rl(self, member: discord.Member):
         user_id = str(member.id)
-        if user_id not in user_data:
-            user_data[user_id] = {'rl_count': 0}
+        if user_id not in self.user_data:
+            self.user_data[user_id] = {'rl_count': 0}
         
-        user_data[user_id]['rl_count'] += 1
-        save_user_data()
+        self.user_data[user_id]['rl_count'] += 1
+        self.save_user_data()
 
         # Mettre à jour le rôle de l'utilisateur en fonction du grade
-        rl_count = user_data[user_id]['rl_count']
+        rl_count = self.user_data[user_id]['rl_count']
         grade = get_user_grade(rl_count)
         await self.update_roles(member, grade)
 

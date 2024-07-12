@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 import matplotlib.pyplot as plt
 import numpy as np
 from utils.json_manager import JsonManager
+import traceback
+import logging
 
 dreams_file = "data/dreams.json"
 stats_file = "data/message_stats.json"
@@ -11,10 +13,12 @@ stats_file = "data/message_stats.json"
 class Statistics(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger('bot.statistics')
         self.dreams = JsonManager.load_json(dreams_file, default={})
         self.message_stats = JsonManager.load_json(stats_file, default={})
         self.combo_reset_hour = 3
         self.timezone = timezone(timedelta(hours=2))
+        self.logger.info("Statistics cog initialized")
 
     def save_stats(self):
         JsonManager.save_json(stats_file, self.message_stats)
@@ -34,37 +38,48 @@ class Statistics(commands.Cog):
         self.save_stats()
 
     def get_user_dream_stats(self, user_id):
+        self.logger.debug(f"Dreams structure for user {user_id}: {self.dreams.get(user_id, 'No dreams found')}")
         if user_id not in self.dreams:
             return None, 0, 0
+
         dreams = self.dreams[user_id]
         total_dreams = len(dreams)
         lucid_dreams = sum(1 for dream in dreams if dream.get("rl", False))
+
         return dreams, total_dreams, lucid_dreams
 
     def calculate_combo(self, user_id):
         if user_id not in self.dreams:
             return 0, 0
-        dreams = sorted(self.dreams[user_id], key=lambda d: d['date'])
-        combo = 0
+
+        dreams = sorted(self.dreams[user_id], key=lambda d: datetime.fromisoformat(d['date']).replace(tzinfo=self.timezone))
+        current_combo = 0
         max_combo = 0
         last_date = None
-        for dream in dreams:
-            dream_date = datetime.fromisoformat(dream['date']).astimezone(self.timezone).date()
-            if last_date is None:
-                combo = 1
-            else:
-                if (dream_date - last_date).days == 1:
-                    combo += 1
-                else:
-                    combo = 1
-            if combo > max_combo:
-                max_combo = combo
-            last_date = dream_date
-        current_date = datetime.now(self.timezone).date()
-        if last_date and (current_date - last_date).days > 1:
-            combo = 0
-        return combo, max_combo
 
+        for dream in dreams:
+            dream_date = datetime.fromisoformat(dream['date']).replace(tzinfo=self.timezone).date()
+            
+            if last_date is None:
+                current_combo = 1
+            elif dream_date == last_date:
+                continue  # même jour, on ne fait rien
+            elif (dream_date - last_date).days == 1:
+                current_combo += 1
+            else:
+                current_combo = 1
+            
+            max_combo = max(max_combo, current_combo)
+            last_date = dream_date
+
+        # Vérifier si le combo est toujours actif
+        today = datetime.now(self.timezone).date()
+        if last_date and (today - last_date).days > 1:
+            current_combo = 0
+
+        self.logger.debug(f"Calculated combo for user {user_id}: current={current_combo}, max={max_combo}")  # Log
+        return current_combo, max_combo
+    
     def calculate_stats(self, guild_id, period_hours):
         now = datetime.utcnow()
         cutoff = now - timedelta(hours=period_hours)
@@ -89,18 +104,31 @@ class Statistics(commands.Cog):
 
     @commands.command(name="dstats")
     async def user_dream_stats(self, ctx, member: discord.Member = None):
-        member = member or ctx.author
-        user_id = str(member.id)
-        dreams, total_dreams, lucid_dreams = self.get_user_dream_stats(user_id)
-        combo, max_combo = self.calculate_combo(user_id)
+        try:
+            member = member or ctx.author
+            user_id = str(member.id)
+            self.logger.info(f"Fetching dream stats for user: {member.name} (ID: {user_id})")
+            
+            self.logger.debug(f"Dreams structure for user {user_id}: {self.dreams.get(user_id, 'No dreams found')}")
+            
+            dreams, total_dreams, lucid_dreams = self.get_user_dream_stats(user_id)
+            self.logger.info(f"User dream stats: total={total_dreams}, lucid={lucid_dreams}")
+            
+            combo, max_combo = self.calculate_combo(user_id)
+            self.logger.info(f"User combo: current={combo}, max={max_combo}")
 
-        embed = discord.Embed(title=f"Statistiques de rêve pour {member.display_name}", color=discord.Color.blue())
-        embed.add_field(name="Total des rêves", value=total_dreams, inline=True)
-        embed.add_field(name="Rêves lucides", value=lucid_dreams, inline=True)
-        embed.add_field(name="Combo actuel", value=combo, inline=True)
-        embed.add_field(name="Combo maximum", value=max_combo, inline=True)
+            embed = discord.Embed(title=f"Statistiques de rêve pour {member.display_name}", color=discord.Color.blue())
+            embed.add_field(name="Total des rêves", value=total_dreams, inline=True)
+            embed.add_field(name="Rêves lucides", value=lucid_dreams, inline=True)
+            embed.add_field(name="Combo actuel", value=combo, inline=True)
+            embed.add_field(name="Combo maximum", value=max_combo, inline=True)
 
-        await ctx.send(embed=embed)
+            await ctx.send(embed=embed)
+        except Exception as e:
+            self.logger.error(f"Une exception s'est produite dans user_dream_stats: {str(e)}", exc_info=True)
+            error_details = f"```\nType: {type(e).__name__}\nMessage: {str(e)}\n```"
+            await ctx.send(f"Une erreur s'est produite lors de la récupération des statistiques. Détails de l'erreur:\n{error_details}")
+            raise  # Cela permettra à l'erreur d'être également affichée dans les logs du bot
 
     @commands.command(name="gstats")
     async def general_dream_stats(self, ctx):

@@ -7,16 +7,17 @@ if not os.path.exists(LOG_DIR):
 
 LOG_FILE = os.path.join(LOG_DIR, "bot.log")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler()
-    ]
-)
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,  # Set to INFO to avoid too much detail
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        handlers=[
+            logging.FileHandler(LOG_FILE),
+            logging.StreamHandler()
+        ]
+    )
 
 # Fonction pour enregistrer les commandes
 def log_command(command_name, user):
     logger = logging.getLogger('command_logger')
-    logger.info(f"Command '{command_name}' executed by user '{user}'")
+    logger.info(f"Command '{command_name}' executed by user '{user}' (User ID: {user.id})")

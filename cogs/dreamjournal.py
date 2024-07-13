@@ -11,6 +11,7 @@ import calendar
 from matplotlib.patches import Rectangle
 from utils.json_manager import JsonManager
 import logging
+from functools import lru_cache
 
 dreams_file = "data/dreams.json"
 CHANNEL_ID_GENERAL = 376777553945296899  # ID du canal général
@@ -24,15 +25,20 @@ class DreamJournal(commands.Cog):
         self.dreams = JsonManager.load_json(dreams_file, default={})
         self.user_states = defaultdict(lambda: {"stage": None, "title": None, "content": []})
         self.timezone = timezone(timedelta(hours=2))
-
-        # Planifier les tâches
         self.scheduler = AsyncIOScheduler()
+        self.setup_scheduler()
+
+    def setup_scheduler(self):
         self.scheduler.add_job(self.post_random_dream, 'cron', day_of_week='mon', hour=5, minute=0, timezone='Europe/Paris')
         self.scheduler.add_job(self.reminder_to_note_dream, 'cron', hour=5, minute=0, timezone='Europe/Paris')
         self.scheduler.start()
 
     async def save_dreams(self):
         JsonManager.save_json(dreams_file, self.dreams)
+
+    @lru_cache(maxsize=128)
+    def get_user_dreams(self, user_id):
+        return self.dreams.get(user_id, [])
 
     async def post_random_dream(self):
         channel = self.bot.get_channel(CHANNEL_ID_GENERAL)
@@ -120,6 +126,23 @@ class DreamJournal(commands.Cog):
             await ctx.send(f"{ctx.author.mention}, vous avez déjà une saisie de rêve en cours.")
             return
 
+        try:
+            title = await self.get_dream_title(ctx)
+            if title is None:
+                return
+
+            content = await self.get_dream_content(ctx)
+            if content is None:
+                return
+
+            if await self.confirm_dream(ctx, title, content):
+                await self.save_dream(ctx, title, content)
+
+        finally:
+            self.user_states[user_id]["stage"] = None
+
+    async def get_dream_title(self, ctx):
+        user_id = str(ctx.author.id)
         self.user_states[user_id]["stage"] = "title"
         embed = discord.Embed(title="Ajouter un rêve", description="Quel est le titre de votre rêve ?", color=discord.Color.blue())
         msg = await ctx.send(embed=embed)
@@ -141,89 +164,38 @@ class DreamJournal(commands.Cog):
                 stuff = done.pop().result()
             except asyncio.TimeoutError:
                 await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer.")
-                self.user_states[user_id]["stage"] = None
-                for future in done:
-                    future.exception()
-                for future in pending:
-                    future.cancel()
-                await msg.delete()
-                return
+                return None
 
             for future in pending:
                 future.cancel()
 
             if isinstance(stuff, discord.Message):
-                title = stuff.content
+                return stuff.content
             else:
                 await ctx.send(f"{ctx.author.mention}, ajout du rêve annulé.")
-                self.user_states[user_id]["stage"] = None
-                await msg.delete()
-                return
+                return None
 
-            if user_id in self.dreams and any(dream['title'].lower() == title.lower() for dream in self.dreams[user_id]):
-                await ctx.send(f"{ctx.author.mention}, vous avez déjà un rêve avec ce titre dans votre journal.")
-                self.user_states[user_id]["stage"] = None
-                await msg.delete()
-                return
-
-            self.user_states[user_id]["title"] = title
-            self.user_states[user_id]["stage"] = "content"
-
-            embed = discord.Embed(title="Ajouter un rêve", description="Décrivez votre rêve. Envoyez 'FIN' pour terminer l'ajout.", color=discord.Color.blue())
-            await msg.edit(embed=embed)
-
-            content = await self.wait_for_dream_content(ctx, 1800.0)
-            if content is None:
-                self.user_states[user_id]["stage"] = None
-                await msg.delete()
-                return
-
-            date = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=2))).isoformat()
-
-            if await self.confirm_dream(ctx, title, content):
-                rl = await self.ask_for_rl(ctx)
-                if user_id not in self.dreams:
-                    self.dreams[user_id] = []
-
-                self.dreams[user_id].append({"title": title, "content": content, "date": date, "rl": rl})
-                await self.save_dreams()
-
-                if rl:
-                    profile_cog = self.bot.get_cog('Profile')
-                    if profile_cog:
-                        await profile_cog.add_rl(ctx.author)
-
-                embed = discord.Embed(title="Rêve ajouté", description=f"Rêve '{title}' ajouté avec succès{' en tant que RL' if rl else ''} !", color=discord.Color.green())
-                await ctx.send(embed=embed)
-
-            self.user_states[user_id]["stage"] = None
+        finally:
             await msg.delete()
 
-        except asyncio.TimeoutError:
-            self.user_states[user_id]["stage"] = None
-            await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer.")
-            await msg.delete()
+    async def get_dream_content(self, ctx):
+        user_id = str(ctx.author.id)
+        self.user_states[user_id]["stage"] = "content"
+        embed = discord.Embed(title="Ajouter un rêve", description="Décrivez votre rêve. Envoyez 'FIN' pour terminer l'ajout.", color=discord.Color.blue())
+        msg = await ctx.send(embed=embed)
 
-    async def wait_for_text_input(self, ctx, timeout):
-        def check(m):
-            return m.author == ctx.author and m.channel == ctx.channel
-
-        try:
-            message = await self.bot.wait_for('message', check=check, timeout=timeout)
-            return message.content
-        except asyncio.TimeoutError:
-            await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer.")
-            return None
-
-    async def wait_for_dream_content(self, ctx, timeout):
         content = []
         while True:
-            input_text = await self.wait_for_text_input(ctx, timeout)
-            if input_text is None:
+            try:
+                message = await self.bot.wait_for('message', check=lambda m: m.author == ctx.author and m.channel == ctx.channel, timeout=1800.0)
+                if message.content.upper() == 'FIN':
+                    break
+                content.append(message.content)
+            except asyncio.TimeoutError:
+                await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer.")
                 return None
-            if input_text.upper() == 'FIN':
-                break
-            content.append(input_text)
+
+        await msg.delete()
         return "\n".join(content)
 
     async def confirm_dream(self, ctx, title, content):
@@ -262,6 +234,25 @@ class DreamJournal(commands.Cog):
             await msg.delete()
             return False
 
+    async def save_dream(self, ctx, title, content):
+        user_id = str(ctx.author.id)
+        date = datetime.now(self.timezone).isoformat()
+        rl = await self.ask_for_rl(ctx)
+        
+        if user_id not in self.dreams:
+            self.dreams[user_id] = []
+
+        self.dreams[user_id].append({"title": title, "content": content, "date": date, "rl": rl})
+        await self.save_dreams()
+
+        if rl:
+            profile_cog = self.bot.get_cog('Profile')
+            if profile_cog:
+                await profile_cog.add_rl(ctx.author)
+
+        embed = discord.Embed(title="Rêve ajouté", description=f"Rêve '{title}' ajouté avec succès{' en tant que RL' if rl else ''} !", color=discord.Color.green())
+        await ctx.send(embed=embed)
+
     async def interactive_listdreams(self, ctx, member: discord.Member = None, page: int = 1):
         if ctx.channel.name != "channel-des-rl":
             await ctx.send("Cette commande ne peut être utilisée que dans le canal `channel-des-rl`.")
@@ -270,11 +261,11 @@ class DreamJournal(commands.Cog):
         member = member or ctx.author
         user_id = str(member.id)
         
-        if user_id not in self.dreams or not self.dreams[user_id]:
+        dreams = self.get_user_dreams(user_id)
+        if not dreams:
             await ctx.send(f"{member.display_name} n'a pas encore noté de rêves.")
             return
 
-        dreams = self.dreams[user_id]
         dreams_per_page = 5
         total_pages = math.ceil(len(dreams) / dreams_per_page)
 
@@ -319,7 +310,7 @@ class DreamJournal(commands.Cog):
         embed = discord.Embed(title=f"Rêves notés par {member.display_name} (Page {page}/{total_pages})", color=discord.Color.blue())
         for dream in current_page_dreams:
             title = f"⭐ {dream['title']}" if dream.get("rl", False) else dream["title"]
-            date = datetime.fromisoformat(dream["date"]).astimezone(timezone(timedelta(hours=2))).strftime("%Y-%m-%d %H:%M:%S")
+            date = datetime.fromisoformat(dream["date"]).astimezone(self.timezone).strftime("%Y-%m-%d %H:%M:%S")
             embed.add_field(name=title, value=f"Ajouté le {date}", inline=False)
         
         return embed
@@ -339,7 +330,8 @@ class DreamJournal(commands.Cog):
 
     async def interactive_viewdream(self, ctx):
         user_id = str(ctx.author.id)
-        if user_id not in self.dreams:
+        dreams = self.get_user_dreams(user_id)
+        if not dreams:
             await ctx.send("Vous n'avez pas encore noté de rêves.")
             return
 
@@ -351,7 +343,7 @@ class DreamJournal(commands.Cog):
             if title is None:
                 return
 
-            dream = next((dream for dream in self.dreams[user_id] if dream["title"].lower() == title.lower()), None)
+            dream = next((dream for dream in dreams if dream["title"].lower() == title.lower()), None)
             if dream:
                 embed = discord.Embed(title=dream["title"], description=dream["content"], color=discord.Color.blue())
                 await ctx.send(embed=embed)
@@ -366,7 +358,8 @@ class DreamJournal(commands.Cog):
 
     async def interactive_deletedream(self, ctx):
         user_id = str(ctx.author.id)
-        if user_id not in self.dreams:
+        dreams = self.get_user_dreams(user_id)
+        if not dreams:
             await ctx.send("Vous n'avez pas encore noté de rêves.")
             return
 
@@ -378,7 +371,7 @@ class DreamJournal(commands.Cog):
             if title is None:
                 return
 
-            dream = next((dream for dream in self.dreams[user_id] if dream["title"].lower() == title.lower()), None)
+            dream = next((dream for dream in dreams if dream["title"].lower() == title.lower()), None)
             if dream:
                 self.dreams[user_id].remove(dream)
                 await self.save_dreams()
@@ -428,7 +421,7 @@ class DreamJournal(commands.Cog):
         for user_id, dream in results:
             user = await self.bot.fetch_user(user_id)
             title = f"⭐ {dream['title']}" if dream.get("rl", False) else dream["title"]
-            date = datetime.fromisoformat(dream["date"]).astimezone(timezone(timedelta(hours=2))).strftime("%Y-%m-%d %H:%M:%S")
+            date = datetime.fromisoformat(dream["date"]).astimezone(self.timezone).strftime("%Y-%m-%d %H:%M:%S")
             embed.add_field(name=f"{title} par {user.display_name}", value=f"Ajouté le {date}", inline=False)
         
         await ctx.send(embed=embed)
@@ -436,18 +429,21 @@ class DreamJournal(commands.Cog):
     @commands.command()
     async def dreamcalendar(self, ctx, member: discord.Member = None):
         logger.info(f"Dreamcalendar command invoked by {ctx.author}")
-        if member is None:
-            member = ctx.author
-
+        member = member or ctx.author
         user_id = str(member.id)
-        if user_id not in self.dreams or not self.dreams[user_id]:
+        dreams = self.get_user_dreams(user_id)
+
+        if not dreams:
             await ctx.send(f"{member.display_name} n'a pas encore noté de rêves.")
             return
 
-        dreams_dates = [datetime.fromisoformat(dream['date']).date() for dream in self.dreams[user_id]]
-        lucid_dreams_dates = [datetime.fromisoformat(dream['date']).date() for dream in self.dreams[user_id] if dream.get('rl', False)]
+        calendar_image = await self.generate_dream_calendar(dreams, member)
+        await ctx.send(file=discord.File(calendar_image))
 
-        # Configuration du calendrier
+    async def generate_dream_calendar(self, dreams, member):
+        dreams_dates = [datetime.fromisoformat(dream['date']).date() for dream in dreams]
+        lucid_dreams_dates = [datetime.fromisoformat(dream['date']).date() for dream in dreams if dream.get('rl', False)]
+
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.set_facecolor('#2f3136')  # Fond gris foncé comme Discord
 
@@ -455,12 +451,10 @@ class DreamJournal(commands.Cog):
         year, month = datetime.now().year, datetime.now().month
         month_days = cal.monthdayscalendar(year, month)
 
-        # Définir les jours de la semaine
         days_of_week = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
         for i, day in enumerate(days_of_week):
             ax.text(i + 0.5, len(month_days) + 0.5, day, ha='center', va='center', color='white', weight='bold', fontsize=12)
 
-        # Couleurs et formes pour les jours avec des rêves
         for week_num, week in enumerate(month_days):
             for day_num, day in enumerate(week):
                 if day == 0:
@@ -475,7 +469,6 @@ class DreamJournal(commands.Cog):
                 else:
                     ax.text(day_num + 0.5, len(month_days) - week_num - 0.5, str(day), ha='center', va='center', color='grey', fontsize=10)
 
-        # Légende
         legend_elements = [
             Rectangle((0, 0), 1, 1, edgecolor='deepskyblue', facecolor='deepskyblue', alpha=0.5, label='Rêve noté'),
             Rectangle((0, 0), 1, 1, edgecolor='gold', facecolor='gold', alpha=0.5, label='Rêve lucide')
@@ -487,11 +480,22 @@ class DreamJournal(commands.Cog):
         ax.axis('off')
         ax.set_title(f"Calendrier des rêves de {member.display_name} - {calendar.month_name[month]} {year}", color='white', fontsize=14)
 
-        file_path = f"data/{user_id}_calendar.png"
+        file_path = f"data/{member.id}_calendar.png"
         plt.savefig(file_path, bbox_inches='tight', dpi=100, facecolor='#2f3136')
         plt.close(fig)
 
-        await ctx.send(file=discord.File(file_path))
+        return file_path
+
+    async def wait_for_text_input(self, ctx, timeout):
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
+
+        try:
+            message = await self.bot.wait_for('message', check=check, timeout=timeout)
+            return message.content
+        except asyncio.TimeoutError:
+            await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer.")
+            return None
 
 def setup(bot):
     bot.add_cog(DreamJournal(bot))

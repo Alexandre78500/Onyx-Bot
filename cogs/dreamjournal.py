@@ -125,14 +125,45 @@ class DreamJournal(commands.Cog):
         msg = await ctx.send(embed=embed)
         await msg.add_reaction('❌')
 
+        def check_message(m):
+            return m.author == ctx.author and m.channel == ctx.channel
+
+        def check_reaction(reaction, user):
+            return user == ctx.author and str(reaction.emoji) == '❌' and reaction.message.id == msg.id
+
         try:
-            title = await self.wait_for_text_input(ctx, 1800.0)
-            if title is None:
+            done, pending = await asyncio.wait([
+                self.bot.wait_for('message', check=check_message, timeout=1800.0),
+                self.bot.wait_for('reaction_add', check=check_reaction, timeout=1800.0)
+            ], return_when=asyncio.FIRST_COMPLETED)
+
+            try:
+                stuff = done.pop().result()
+            except asyncio.TimeoutError:
+                await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer.")
+                self.user_states[user_id]["stage"] = None
+                for future in done:
+                    future.exception()
+                for future in pending:
+                    future.cancel()
+                await msg.delete()
+                return
+
+            for future in pending:
+                future.cancel()
+
+            if isinstance(stuff, discord.Message):
+                title = stuff.content
+            else:
+                await ctx.send(f"{ctx.author.mention}, ajout du rêve annulé.")
+                self.user_states[user_id]["stage"] = None
+                await msg.delete()
                 return
 
             if user_id in self.dreams and any(dream['title'].lower() == title.lower() for dream in self.dreams[user_id]):
                 await ctx.send(f"{ctx.author.mention}, vous avez déjà un rêve avec ce titre dans votre journal.")
                 self.user_states[user_id]["stage"] = None
+                await msg.delete()
                 return
 
             self.user_states[user_id]["title"] = title
@@ -143,6 +174,8 @@ class DreamJournal(commands.Cog):
 
             content = await self.wait_for_dream_content(ctx, 1800.0)
             if content is None:
+                self.user_states[user_id]["stage"] = None
+                await msg.delete()
                 return
 
             date = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=2))).isoformat()
@@ -164,10 +197,12 @@ class DreamJournal(commands.Cog):
                 await ctx.send(embed=embed)
 
             self.user_states[user_id]["stage"] = None
+            await msg.delete()
 
         except asyncio.TimeoutError:
             self.user_states[user_id]["stage"] = None
             await ctx.send(f"{ctx.author.mention}, temps écoulé. Veuillez recommencer.")
+            await msg.delete()
 
     async def wait_for_text_input(self, ctx, timeout):
         def check(m):
